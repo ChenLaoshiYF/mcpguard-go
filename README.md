@@ -16,13 +16,15 @@ AI Agent 安全扫描器，Go 实现版。检测 MCP 工具描述与 skill 文�
 
 ## 检测规则
 
-与 Python 版同一套规则引擎，8 类检测：
+与 Python 版同一套规则引擎，10 类检测：
 
 | ID | 规则 | 严重度 | 检测内容 |
 |----|------|--------|---------|
 | UNI-001 | Unicode 隐形字符 | high | 私有区、零宽字符、Bidi 控制符（可隐藏指令） |
 | B64-001 | 可疑 base64 长串 | medium | 疑似编码混淆的指令内容 |
 | INJ-001 | 指令覆盖模式 | **critical** | "ignore previous instructions" 等提示注入核心特征 |
+| INJ-002 | 角色扮演注入 | **critical** | "从现在开始你是…"诱导切换角色/行为（语义变体） |
+| INJ-003 | 多语言指令覆盖 | high | 日语（無視して）/ 韩语（무시하고）指令忽略表述 |
 | PTH-001 | 敏感路径引用 | high | SSH 密钥、AWS 凭据、token 文件路径 |
 | SHL-001 | 危险 shell 模式 | **critical** | curl\|sh、rm -rf、反向 shell、eval、PowerShell IEX |
 | PWD-001 | 密码赋值形态 | info | password= 明文赋值（仅提示） |
