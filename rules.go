@@ -133,6 +133,25 @@ var ignorePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(复述|泄露|透露|展示).{0,8}(系统提示|system prompt|系统指令)`),
 }
 
+// 角色扮演注入（v0.3.0 同步）
+var roleplayPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)(从现在开始|从现在起|接下来).{0,10}(你是|你扮演|你将扮演|请扮演|假装你是)`),
+	regexp.MustCompile(`(?i)(你不再|你不是|忘记你).{0,8}(AI助手|AI 助手|语言模型|assistant|chatbot)`),
+	regexp.MustCompile(`(?i)you\s+are\s+(now\s+)?(no\s+longer\s+)?(an?\s+)?(assistant|chatbot|ai|llm)`),
+	regexp.MustCompile(`(?i)(act|behave|pretend|roleplay)\s+(as|like)\s+(an?\s+)?(hacker|coder|admin|root|terminal)`),
+	regexp.MustCompile(`(扮演|假装|模拟).{0,8}(黑客|管理员|root|终端|系统)`),
+	regexp.MustCompile(`(?i)(system\s+prompt|instructions?)\s+(is\s+)?(now|replaced|overridden)`),
+	regexp.MustCompile(`(?i)new\s+(instructions?|rules|directives?)\s+(apply|take\s+effect)`),
+}
+
+// 多语言指令覆盖（v0.3.0 同步，日/韩）
+var i18nOverridePatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)(指示|命令|プロンプト).{0,8}(無視|無視して|無視しろ)`),
+	regexp.MustCompile(`(?i)(これまでの|以前の).{0,6}(指示|命令).{0,8}(無視|すべて)`),
+	regexp.MustCompile(`(?i)(지시|명령|프롬프트).{0,8}(무시|무시하고|무시해)`),
+	regexp.MustCompile(`(?i)(이전|지금까지).{0,6}(지시|명령).{0,6}(무시|전부)`),
+}
+
 // 危险路径
 var dangerousPaths = []string{
 	`[/\\]\.ssh[/\\]`,
@@ -351,6 +370,36 @@ func checkSuspiciousBehavior(text string) []string {
 	return hits
 }
 
+func checkRoleplay(text string) []string {
+	var hits []string
+	for _, pat := range roleplayPatterns {
+		for _, m := range pat.FindAllStringIndex(text, -1) {
+			if len(hits) >= 20 {
+				return hits
+			}
+			start := max(0, m[0]-25)
+			end := min(len(text), m[1]+25)
+			hits = append(hits, "位置 "+itoa(m[0])+": …"+text[start:end]+"…")
+		}
+	}
+	return hits
+}
+
+func checkI18nOverride(text string) []string {
+	var hits []string
+	for _, pat := range i18nOverridePatterns {
+		for _, m := range pat.FindAllStringIndex(text, -1) {
+			if len(hits) >= 20 {
+				return hits
+			}
+			start := max(0, m[0]-25)
+			end := min(len(text), m[1]+25)
+			hits = append(hits, "位置 "+itoa(m[0])+": …"+text[start:end]+"…")
+		}
+	}
+	return hits
+}
+
 // ---------------------------------------------------------------------------
 // 引擎构建
 // ---------------------------------------------------------------------------
@@ -381,6 +430,12 @@ func buildDefaultEngine() *RuleEngine {
 	e.Register(Rule{"HMG-001", "同形字混淆 (homoglyph)", "high",
 		"检测到使用视觉相近的 Unicode 字符冒充 ASCII 字母（如西里尔 а 冒充 a），用于绕过关键词过滤隐藏恶意指令。",
 		checkHomoglyph})
+	e.Register(Rule{"INJ-002", "角色扮演注入", "critical",
+		"检测到诱导模型切换角色/行为的表述（如“从现在开始你是黑客”），属于提示注入的语义变体，可绕过关键词过滤。",
+		checkRoleplay})
+	e.Register(Rule{"INJ-003", "多语言指令覆盖", "high",
+		"检测到日语/韩语的指令覆盖表述（無視して / 무시하고），多语言提示注入正成为国际工具投毒的趋势手法。",
+		checkI18nOverride})
 	return e
 }
 
