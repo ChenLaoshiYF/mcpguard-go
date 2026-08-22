@@ -1,5 +1,7 @@
 # 明棱 mcpguard (Go)
 
+![CI](https://github.com/ChenLaoshiYF/mcpguard-go/actions/workflows/ci.yml/badge.svg)
+
 AI Agent 安全扫描器，Go 实现版。检测 MCP 工具描述与 skill 文件中的投毒特征：提示注入、同形字混淆、Unicode 隐形字符、危险 shell、凭据泄露。
 
 **零第三方依赖 · 单二进制 · 毫秒级启动 · 三平台交叉编译**
